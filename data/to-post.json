@@ -1,0 +1,14 @@
+{
+  "posts": [
+    {
+      "description": "Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
+      "image_path": "/home/shricodev/Downloads/astronaut.jpg",
+      "post_date": "2024-07-06T08:08:46.698926+00:00",
+      "extra_data": {
+        "custom_accessibility_caption": "An astronaut in the space",
+        "like_and_view_counts_disabled": 0,
+        "disable_comments": 0
+      }
+    }
+  ]
+}

@@ -1,6 +1,13 @@
 # Virtual Environment
+venv
 .venv
+
+# Pycache
+__pycache__
 
 # Environment Variables
 .env.local
 .env
+
+# Log files
+**/*.log
