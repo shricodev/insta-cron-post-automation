@@ -1,9 +1,10 @@
 import json
+import sys
 
 from dateutil import parser
 
-from .logger_config import get_logger
-from .post import Post
+from logger_config import get_logger
+from post import Post
 
 
 class PostList:
@@ -41,32 +42,48 @@ class PostList:
                 data = json.load(posts_json_file)
 
                 if "posts" not in data:
-                    raise ValueError("No 'posts' key found in the json file")
+                    self._handle_error("No 'posts' key found in the json file")
 
                 for post in data["posts"]:
                     if not all(
                         key in post
-                        for key in ["description", "image_path", "post_date"]
+                        for key in ["image_path", "description", "post_date"]
                     ):
-                        raise ValueError("Missing required keys in the post object")
+                        self._handle_error("Missing required keys in the post object")
+
+                    extra_data = post.get("extra_data")
 
                     post_obj = Post(
-                        description=post["description"],
                         image_path=post["image_path"],
+                        description=post["description"],
                         post_date=parser.parse(post["post_date"]),
+                        extra_data=extra_data,
                     )
                     self.posts.append(post_obj)
 
         except FileNotFoundError:
-            self.logger.error(f"File not found: {posts_file_path}")
+            self._handle_error(f"File not found: {posts_file_path}")
+
+        except PermissionError:
+            self._handle_error(f"Permission denied: {posts_file_path}")
 
         except json.JSONDecodeError:
-            self.logger.error(f"Invalid JSON file: {posts_file_path}")
+            self._handle_error(f"Invalid JSON file: {posts_file_path}")
 
         except ValueError as ve:
-            self.logger.error(f"Error parsing the JSON file: {ve}")
+            self._handle_error(f"Invalid date format provided in the post object: {ve}")
 
         except Exception as e:
-            self.logger.error(f"An internal error occurred: {e}")
+            self._handle_error(f"Unexpected error: {e}")
 
         return self.posts
+
+    def _handle_error(self, message):
+        """
+        Log an error message and exit the program.
+
+        Args:
+            message (str): The error message to log.
+        """
+        self.logger.error(message)
+        sys.exit(1)

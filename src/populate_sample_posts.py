@@ -1,30 +1,55 @@
-import json
 import os
 from datetime import datetime
 from random import choice
 
+import lorem
+import numpy as np
 from dateutil import tz
+from PIL import Image
 
-from .logger_config import get_logger
+from logger_config import get_logger
+from post import Post
+from post_list import PostList
 
-descriptions = [
-    "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
-    "Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-    "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
-    "Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
-    "Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
-]
-
-image_paths = [
-    "https://example.com/image1.jpg",
-    "https://example.com/image2.jpg",
-    "https://example.com/image3.jpg",
-    "https://example.com/image4.jpg",
-    "https://example.com/image5.jpg",
-]
+POST_COUNT = 2
+DESCRIPTIONS = [lorem.sentence() for _ in range(POST_COUNT)]
 
 
-def generate_sample_posts(num_posts):
+def generate_sample_images(num_images, width, height, save_dir):
+    """
+    Generate random images and save them to the specified directory.
+
+    Args:
+        num_images (int): Number of images to generate.
+        width (int): Width of the images.
+        height (int): Height of the images.
+        save_dir (str): Directory to save the images.
+
+    Returns:
+        List[str]: List of file paths of the saved images.
+    """
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+
+    file_paths = []
+
+    for i in range(num_images):
+        # Generate random pixel data for an image
+        random_data = np.random.randint(0, 256, (height, width, 3), dtype=np.uint8)
+
+        # Create an image from the pixel data
+        image = Image.fromarray(random_data, "RGB")
+
+        file_path = os.path.join(save_dir, f"sample_image_{i}.jpg")
+
+        # Save the image to the specified file path
+        image.save(file_path)
+        file_paths.append(file_path)
+
+    return file_paths
+
+
+def generate_sample_posts(num_posts, image_paths):
     """
     Generate a list of sample posts.
 
@@ -40,42 +65,33 @@ def generate_sample_posts(num_posts):
     """
     posts = []
     for _ in range(num_posts):
-        post = {
-            "description": choice(descriptions),
-            "image_path": choice(image_paths),
-            "post_date": datetime.now(tz=tz.UTC).isoformat(),  # ISO 8601 format
-        }
-        posts.append(post)
+        post_obj = Post(
+            image_path=choice(image_paths),
+            description=choice(DESCRIPTIONS),
+            post_date=datetime.now(tz=tz.UTC).isoformat(),
+        )
+        posts.append(post_obj)
     return posts
-
-
-def write_to_json_file(posts, filename):
-    """
-    Write the given list of posts to a JSON file.
-
-    Args:
-        posts (List[Dict[str, Union[str, datetime]]]): The list of posts to write.
-        filename (str): The name of the file to write to.
-
-    Returns:
-        None
-    """
-    with open(filename, "w") as f:
-        json.dump({"posts": posts}, f, indent=2)
 
 
 if __name__ == "__main__":
     current_dir = os.path.dirname(os.path.abspath(__file__))
 
-    log_path = os.path.join(current_dir, "logs", "python_insta_post.log")
-    to_post_path = os.path.join(current_dir, "data", "to-post.json")
+    log_path = os.path.join(current_dir, "..", "logs", "python_insta_post.log")
+    to_post_path = os.path.join(current_dir, "..", "data", "to-post.json")
 
     logger = get_logger(log_path)
 
-    num_posts = 2
+    post_list = PostList(log_path)
+    image_paths = generate_sample_images(
+        num_images=POST_COUNT, width=640, height=480, save_dir="/tmp"
+    )
 
-    sample_posts = generate_sample_posts(num_posts)
+    sample_posts = generate_sample_posts(POST_COUNT, image_paths=image_paths)
 
-    write_to_json_file(sample_posts, to_post_path)
+    post_list.posts.extend(sample_posts)
+
+    with open(to_post_path, "w") as f:
+        f.write(post_list.serialize())
 
     logger.info(f"Sample posts written to '{to_post_path}'")

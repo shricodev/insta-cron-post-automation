@@ -11,3 +11,4 @@ __pycache__
 
 # Log files
 **/*.log
+data/scheduled_posts/*.json

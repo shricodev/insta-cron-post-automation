@@ -51,8 +51,8 @@ def setup_instagrapi(logger):
             logger.error("Instagram Login failed")
             sys.exit(1)
 
-    except Exception as error:
-        logger.error(f"An error occurred while logging in to Instagram: {error}")
+    except Exception as exception:
+        logger.error(f"An error occurred while logging in to Instagram: {exception}")
         sys.exit(1)
 
     return client
