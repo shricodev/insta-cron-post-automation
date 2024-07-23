@@ -42,5 +42,4 @@ fi
 # Set the python executable to the one from the virtual environment
 PYTHON_EXEC=$(command -v python)
 
-echo "This is the command that is going to run: $PYTHON_EXEC $1 $2"
-# "$PYTHON_EXEC" "$1" "$2"
+"$PYTHON_EXEC" "$1" "$2"

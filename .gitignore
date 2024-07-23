@@ -11,4 +11,7 @@ __pycache__
 
 # Log files
 **/*.log
+
+# post and generated images
 data/scheduled_posts/*.json
+data/generated_images/*.jpg

@@ -1,12 +1,17 @@
 [
   {
-    "image_path": "/tmp/sample_image_3.jpg",
-    "description": "An image generated with numpy and PIL",
-    "post_date": "2024-07-22 08:08:46.698926+00:00",
-    "extra_data": {
-      "custom_accessibility_caption": "An RGB image",
-      "like_and_view_counts_disabled": 0,
-      "disable_comments": 0
-    }
+    "image_path": "/home/shricodev/Desktop/codes/python-insta-post/src/../data/generated_images/sample_image_0.jpg",
+    "description": "Velit adipisci voluptatem velit.",
+    "post_date": "2024-07-24 11:42"
+  },
+  {
+    "image_path": "/home/shricodev/Desktop/codes/python-insta-post/src/../data/generated_images/sample_image_0.jpg",
+    "description": "Velit adipisci voluptatem velit.",
+    "post_date": "2024-07-24 11:42"
+  },
+  {
+    "image_path": "/home/shricodev/Desktop/codes/python-insta-post/src/../data/generated_images/sample_image_0.jpg",
+    "description": "Velit adipisci voluptatem velit.",
+    "post_date": "2024-07-24 11:42"
   }
 ]

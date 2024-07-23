@@ -1,12 +1,14 @@
 import json
 import os
 import sys
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 from logger_config import get_logger
 from setup import setup_instagrapi
 
 
-def is_valid_image_extension(file_name):
+def is_valid_image_extension(file_name: str) -> bool:
     """
     Check if the given file name has a valid image extension.
 
@@ -22,25 +24,37 @@ def is_valid_image_extension(file_name):
     return any(file_name.endswith(ext) for ext in valid_extensions)
 
 
-def update_post_files(success, json_post_content):
+def update_post_files(success: bool, json_post_content: Dict[str, Any]) -> None:
     """
     Update the post error file based on the success of the upload.
 
     Args:
+    - success (bool): True if the upload was successful, False otherwise.
     - json_post_content (dict): The content of the post.
     """
 
-    def load_json_file(file_path, default=None):
+    def load_json_file(file_path: str, default: Optional[Any] = None) -> Any:
         """Helper function to load JSON data from a file."""
         if os.path.exists(file_path):
             with open(file_path, "r") as file:
                 return json.load(file)
         return default if default is not None else []
 
-    def write_json_file(file_path, data):
+    def write_json_file(file_path: str, posts: List[Dict[str, Any]]) -> None:
         """Helper function to save JSON data to a file."""
+        for post in posts:
+            if "post_date" in post:
+                try:
+                    post_date = datetime.strptime(
+                        post["post_date"], "%Y-%m-%d %H:%M:%S"
+                    )
+                    post["post_date"] = post_date.strftime("%Y-%m-%d %H:%M")
+                except ValueError:
+                    post_date = datetime.strptime(post["post_date"], "%Y-%m-%d %H:%M")
+                    post["post_date"] = post_date.strftime("%Y-%m-%d %H:%M")
+
         with open(file_path, "w") as file:
-            json.dump(data, file, indent=2)
+            json.dump(posts, file, indent=2)
 
     # Get the directory of the current script
     current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -70,11 +84,13 @@ def update_post_files(success, json_post_content):
 
     # Filter the posted post from the 'to-post' data
     if any(post == json_post_content for post in to_post_data["posts"]):
-        to_post_data["posts"] = [item for item in to_post_data["posts"] if item != json_post_content]
+        to_post_data["posts"] = [
+            item for item in to_post_data["posts"] if item != json_post_content
+        ]
         write_json_file(to_post_file, to_post_data)
 
 
-def main():
+def main() -> None:
     """
     Main function to handle the posting process.
 
@@ -90,7 +106,7 @@ def main():
     current_dir = os.path.dirname(os.path.abspath(__file__))
 
     # Path to the log file, assuming 'logs' is one level up from the current directory
-    log_path = os.path.join(current_dir, "..", "logs", "python_insta_post.log")
+    log_path = os.path.join(current_dir, "..", "logs", "activity.log")
     logger = get_logger(log_path)
 
     if len(sys.argv) > 1:
@@ -103,7 +119,7 @@ def main():
         with open(post_path, "r") as post_file:
             content = post_file.read()
 
-        json_post_content = json.loads(content)
+        json_post_content: Dict[str, Any] = json.loads(content)
 
         if (not os.path.exists(post_path)) or (not os.path.isfile(post_path)):
             logger.error(f"'{post_path}' does not exist or is not a file")
@@ -117,13 +133,13 @@ def main():
             sys.exit(1)
 
         # Prepare upload parameters
-        upload_params = {
+        upload_params: Dict[str, Any] = {
             "path": json_post_content.get("image_path"),
             "caption": json_post_content.get("description"),
         }
 
         if "extra_data" in json_post_content:
-            extra_data = json_post_content["extra_data"]
+            extra_data: Dict[str, Any] = json_post_content["extra_data"]
             try:
                 # Ensure the data types are correct
                 extra_data["custom_accessibility_caption"] = str(
@@ -140,7 +156,10 @@ def main():
                 logger.error(
                     f"The 'extra_data' field in the post file is not in the expected format: {json_post_content}"
                 )
-                update_post_files(success=False, json_post_content=json_post_content)
+                update_post_files(
+                    success=False,
+                    json_post_content=json_post_content,
+                )
                 sys.exit(1)
 
             # Ensure the values are within the expected range

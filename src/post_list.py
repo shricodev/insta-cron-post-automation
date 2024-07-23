@@ -1,7 +1,7 @@
 import json
 import sys
-
-from dateutil import parser
+from datetime import datetime
+from typing import List, Optional
 
 from logger_config import get_logger
 from post import Post
@@ -12,11 +12,11 @@ class PostList:
     A class to manage/represent a list of posts.
     """
 
-    def __init__(self, log_path):
+    def __init__(self, log_path: str):
         self.posts = []
         self.logger = get_logger(log_path)
 
-    def serialize(self):
+    def serialize(self) -> str:
         """
         Serialize the list of posts into a JSON string.
         Use this method to write the content in the `self.posts` array to a JSON file.
@@ -27,7 +27,26 @@ class PostList:
         serialized_posts = [post.serialize() for post in self.posts]
         return json.dumps({"posts": serialized_posts}, default=str)
 
-    def get_posts_from_json_file(self, posts_file_path):
+    # Custom function to parse the date without seconds
+    def parse_post_date(self, post_date: str) -> str:
+        """
+        Custom function to parse the date without seconds.
+
+        Args:
+            post_date (str): The date string to parse.
+
+        Returns:
+            str: The parsed date string without seconds.
+        """
+        date_format = "%Y-%m-%d %H:%M"
+
+        # Parse the date
+        parsed_date = datetime.strptime(post_date, date_format)
+
+        # Return the date formatted without seconds
+        return parsed_date.strftime("%Y-%m-%d %H:%M")
+
+    def get_posts_from_json_file(self, posts_file_path: str) -> List[Post]:
         """
         Load posts from a JSON file and populate the list.
 
@@ -35,7 +54,7 @@ class PostList:
             posts_file_path (str): The path to the JSON file containing post data.
 
         Returns:
-            list: List of Post objects loaded from the JSON file.
+            List[Post]: List of Post objects loaded from the JSON file.
         """
         try:
             with open(posts_file_path, "r") as posts_json_file:
@@ -51,12 +70,12 @@ class PostList:
                     ):
                         self._handle_error("Missing required keys in the post object")
 
-                    extra_data = post.get("extra_data")
+                    extra_data: Optional[dict] = post.get("extra_data")
 
                     post_obj = Post(
                         image_path=post["image_path"],
                         description=post["description"],
-                        post_date=parser.parse(post["post_date"]),
+                        post_date=self.parse_post_date(post_date=post["post_date"]),
                         extra_data=extra_data,
                     )
                     self.posts.append(post_obj)
@@ -78,7 +97,7 @@ class PostList:
 
         return self.posts
 
-    def _handle_error(self, message):
+    def _handle_error(self, message: str) -> None:
         """
         Log an error message and exit the program.
 

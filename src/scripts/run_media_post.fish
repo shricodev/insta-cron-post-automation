@@ -47,5 +47,4 @@ end
 # Get the path to the python3 executable from the virtual environment
 set -l PYTHON_EXEC (command -v python)
 
-echo "this is the command that is going to run"
-echo "$PYTHON_EXEC" "$argv[1]" "$argv[2]"
+"$PYTHON_EXEC" "$argv[1]" "$argv[2]"
