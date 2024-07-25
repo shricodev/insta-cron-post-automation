@@ -1,7 +1,7 @@
 # Insta Cron Post Automation 🐍 ⏰
 
 ![Version](https://img.shields.io/badge/version-0.1.0-blue.svg?cacheSeconds=2592000)
-[![License: GNU GENERAL PUBLIC](https://img.shields.io/badge/License-MIT-yellow.svg)](#)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](#)
 [![Twitter: shricodev](https://img.shields.io/twitter/follow/shricodev.svg?style=social)](https://twitter.com/shricodev)
 
 ![GitHub repo size](https://img.shields.io/github/repo-size/shricodev/insta-cron-post-automation?style=plastic)
@@ -9,7 +9,7 @@
 ![GitHub top language](https://img.shields.io/github/languages/top/shricodev/insta-cron-post-automation?style=plastic)
 ![GitHub last commit](https://img.shields.io/github/last-commit/shricodev/insta-cron-post-automation?color=red&style=plastic)
 
-## 👁️‍🗨️ Overview
+## 📚 Overview
 
 The **Python Insta Post Scheduler** is a Python application designed to automate Instagram posts by scheduling them using **Cronjobs**. This project allows you to post image to Instagram with optional metadata and control various post settings per each post.
 
@@ -68,6 +68,8 @@ insta-cron-post-automation/
 
 - **Clone the Repository**
 
+> 💬 If you are using HTTPS protocol instead of SSH, change the `git clone` command accordingly.
+
 ```bash
 git clone git@github.com:shricodev/insta-cron-post-automation.git
 cd insta-cron-post-automation
@@ -77,7 +79,7 @@ cd insta-cron-post-automation
 
 ```bash
 python3 -m venv .venv
-source .venv/bin/activate.fish # or .venv/Scripts/activate if you are not using the fish shell
+source .venv/bin/activate.fish # or .venv/bin/activate if you are not using the fish shell
 ```
 
 - **Install Dependencies**
@@ -95,7 +97,7 @@ INSTA_PASSWORD=<your_instagram_password>
 
 You can use the `.env.example` file as a template.
 
-## 🧑‍💻 Usage
+## 💻 Usage
 
 - **Configure Posts**
 
@@ -127,7 +129,7 @@ python3 main.py
 This script will:
 
 - Load posts from the JSON file.
-- Creates a temporary file for each post inside the `data/scheduled_posts/` directory.
+- Creates an individual json file for each post inside the `data/scheduled_posts/` directory.
 - Schedule cron jobs to post at the specified times.
 
 ## 💬 Logging

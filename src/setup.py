@@ -15,10 +15,13 @@ def get_credentials(logger: logging.Logger) -> Tuple[str, str]:
     then retrieves the username and password from the environment variables.
 
     Args:
-        logger (logging.Logger): The logger instance to use for logging.
+    - logger (logging.Logger): The logger instance to use for logging.
 
     Returns:
-        Tuple[str, str]: A tuple containing the username and password retrieved from the environment variables.
+    - Tuple[str, str]: A tuple containing the username and password retrieved from the environment variables.
+
+    Raises:
+    - SystemExit: If the username or password environment variable is missing.
     """
 
     load_dotenv()
@@ -42,8 +45,14 @@ def setup_instagrapi(logger: logging.Logger) -> Client:
     This function uses the get_credentials() function to retrieve the username and password,
     then initializes the instagrapi client with the credentials.
 
+    Args:
+    - logger (logging.Logger): The logger instance to use for logging.
+
     Returns:
     - client (instagrapi.Client): The instagrapi client with the provided credentials.
+
+    Raises:
+    - SystemExit: If an error occurs while logging in to Instagram.
     """
     username, password = get_credentials(logger)
     client = Client()
@@ -54,6 +63,8 @@ def setup_instagrapi(logger: logging.Logger) -> Client:
         if not login_success:
             logger.error("Instagram Login failed")
             sys.exit(1)
+
+        logger.info("Instagram Login successful")
 
     except Exception as e:
         logger.error(f"An error occurred while logging in to Instagram: {e}")

@@ -25,6 +25,7 @@ def get_shell_script_to_run(
     Determine the script to run based on the user's shell.
 
     Args:
+    - user_shell (str): The user's shell.
     - current_dir (str): The current directory of the script.
     - logger (logging.Logger): The logger to use.
 
@@ -135,11 +136,10 @@ def main() -> None:
     # Define paths for log file and posts JSON file
     log_path = os.path.join(current_dir, "logs", "activity.log")
     to_post_path = os.path.join(current_dir, "data", "to-post.json")
+    media_post_path = os.path.join(current_dir, "src", "media_post.py")
 
     # Initialize logger
     logger = logger_config.get_logger(log_path)
-
-    media_post_path = os.path.join(current_dir, "src", "media_post.py")
 
     post_data_dir = os.path.join(current_dir, "data", "scheduled_posts")
     os.makedirs(post_data_dir, exist_ok=True)
@@ -150,7 +150,7 @@ def main() -> None:
     posts_list.get_posts_from_json_file(to_post_path)
     logger.info(f"Number of posts loaded: {len(posts_list.posts)}")
 
-    user_shell = os.path.basename(environ.get("SHELL"))
+    user_shell = os.path.basename(environ.get("SHELL", "/bin/bash"))
     run_media_post_path = get_shell_script_to_run(user_shell, current_dir, logger)
 
     # Access the current user's CronTab object.
@@ -171,8 +171,13 @@ def main() -> None:
             post_data_dir, f"insta_post_{unique_id}_{post_date_suffix}.json"
         )
 
-        with open(scheduled_post_file_path, "w") as f:
-            json.dump(post.serialize(), f, default=str)
+        # Write the post data to the temporary file
+        try:
+            with open(scheduled_post_file_path, "w") as f:
+                json.dump(post.serialize(), f, default=str)
+        except (IOError, json.JSONDecodeError) as e:
+            logger.error(f"Failed to write post file: {e}")
+            sys.exit(1)
 
         # Create a new cron job to run the Instagram post script with the temp file as an argument
         create_cron_job(
@@ -186,8 +191,12 @@ def main() -> None:
         )
 
     # Write the cron jobs to the user's crontab
-    cron.write()
-    logger.info(f"Cronjob added to the CronTab for the current user: {cron.user}")
+    try:
+        cron.write()
+        logger.info(f"Cronjob added to the CronTab for the current user: {cron.user}")
+    except IOError as e:
+        logger.error(f"Failed to write to CronTab: {e}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

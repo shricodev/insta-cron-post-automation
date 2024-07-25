@@ -22,7 +22,7 @@ class PostList:
         Use this method to write the content in the `self.posts` array to a JSON file.
 
         Returns:
-            str: JSON string representing the serialized posts.
+        - str: JSON string representing the serialized posts.
         """
         serialized_posts = [post.serialize() for post in self.posts]
         return json.dumps({"posts": serialized_posts}, default=str)
@@ -33,10 +33,10 @@ class PostList:
         Custom function to parse the date without seconds.
 
         Args:
-            post_date (str): The date string to parse.
+        - post_date (str): The date string to parse.
 
         Returns:
-            str: The parsed date string without seconds.
+        - str: The parsed date string without seconds.
         """
         date_format = "%Y-%m-%d %H:%M"
 
@@ -51,10 +51,15 @@ class PostList:
         Load posts from a JSON file and populate the list.
 
         Args:
-            posts_file_path (str): The path to the JSON file containing post data.
+        - posts_file_path (str): The path to the JSON file containing post data.
 
         Returns:
-            List[Post]: List of Post objects loaded from the JSON file.
+        - List[Post]: List of Post objects loaded from the JSON file.
+
+        Raises:
+        - FileNotFoundError: If the JSON file is not found.
+        - PermissionError: If the JSON file cannot be accessed.
+        - json.JSONDecodeError: If the JSON file is not valid JSON.
         """
         try:
             with open(posts_file_path, "r") as posts_json_file:
@@ -102,7 +107,7 @@ class PostList:
         Log an error message and exit the program.
 
         Args:
-            message (str): The error message to log.
+        - message (str): The error message to log.
         """
         self.logger.error(message)
         sys.exit(1)

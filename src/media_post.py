@@ -1,8 +1,11 @@
 import json
+import logging
 import os
 import sys
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+
+from instagrapi import Client
 
 from logger_config import get_logger
 from setup import setup_instagrapi
@@ -24,20 +27,29 @@ def is_valid_image_extension(file_name: str) -> bool:
     return any(file_name.endswith(ext) for ext in valid_extensions)
 
 
-def update_post_files(success: bool, json_post_content: Dict[str, Any]) -> None:
+def handle_post_update(
+    success: bool, json_post_content: Dict[str, Any], logger: logging.Logger
+) -> None:
     """
     Update the post error file based on the success of the upload.
 
     Args:
     - success (bool): True if the upload was successful, False otherwise.
     - json_post_content (dict): The content of the post.
+
+    Returns:
+    - Return the content of the post file if the read is successful; otherwise, return the default value if provided, or None.
     """
 
     def load_json_file(file_path: str, default: Optional[Any] = None) -> Any:
         """Helper function to load JSON data from a file."""
         if os.path.exists(file_path):
-            with open(file_path, "r") as file:
-                return json.load(file)
+            try:
+                with open(file_path, "r") as file:
+                    return json.load(file)
+            except Exception:
+                logger.error(f"Failed to decode JSON from file '{file_path}'")
+
         return default if default is not None else []
 
     def write_json_file(file_path: str, posts: List[Dict[str, Any]]) -> None:
@@ -52,9 +64,18 @@ def update_post_files(success: bool, json_post_content: Dict[str, Any]) -> None:
                 except ValueError:
                     post_date = datetime.strptime(post["post_date"], "%Y-%m-%d %H:%M")
                     post["post_date"] = post_date.strftime("%Y-%m-%d %H:%M")
+                except Exception as e:
+                    logger.error(f"Failed to parse post date: {e}")
+                    sys.exit(1)
 
-        with open(file_path, "w") as file:
-            json.dump(posts, file, indent=2)
+        try:
+            with open(file_path, "w") as file:
+                json.dump(posts, file, indent=2)
+            logger.info(f"Post file updated: {file_path}")
+
+        except (IOError, json.JSONDecodeError) as e:
+            logger.error(f"Failed to write post file: {e}")
+            sys.exit(1)
 
     # Get the directory of the current script
     current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -82,12 +103,155 @@ def update_post_files(success: bool, json_post_content: Dict[str, Any]) -> None:
     # Write the updated target data back to the target file
     write_json_file(target_file, target_data)
 
+    user_posts = to_post_data["posts"]
+
     # Filter the posted post from the 'to-post' data
-    if any(post == json_post_content for post in to_post_data["posts"]):
-        to_post_data["posts"] = [
-            item for item in to_post_data["posts"] if item != json_post_content
-        ]
+    if any(post == json_post_content for post in user_posts):
+        user_posts = [item for item in user_posts if item != json_post_content]
+        to_post_data["posts"] = user_posts
         write_json_file(to_post_file, to_post_data)
+
+
+def parse_post_file_to_json(post_path: str, logger: logging.Logger) -> Dict[str, Any]:
+    """
+    Parses the content of a post file into a JSON dictionary.
+
+    Args:
+    - post_path (str): The path to the post file.
+    - logger (logging.Logger): The logger instance to use for logging errors.
+
+    Returns:
+    - Dict[str, Any]: The content of the post file parsed as a JSON dictionary.
+
+    Raises:
+    - SystemExit: Exits the program with an error status if the file does not exist,
+                  if permission is denied, if JSON decoding fails, or if any other
+                  exception occurs during file reading.
+    """
+    try:
+        with open(post_path, "r") as post_file:
+            content = post_file.read()
+        return json.loads(content)
+
+    except FileNotFoundError:
+        logger.error(f"Post file '{post_path}' does not exist")
+        sys.exit(1)
+
+    except PermissionError:
+        logger.error(f"Permission denied when trying to read post file '{post_path}'")
+        sys.exit(1)
+
+    except json.JSONDecodeError:
+        logger.error(f"Failed to decode JSON from post file '{post_path}'")
+        sys.exit(1)
+
+    except Exception as e:
+        logger.error(f"Failed to read post file '{post_path}': {e}")
+        sys.exit(1)
+
+
+def handle_invalid_post_file(
+    error_message: str, json_post_content: Dict[str, Any], logger: logging.Logger
+) -> None:
+    """
+    This function logs an error message, updates the post files to indicate failure,
+    and terminates the program with an exit status of 1.
+
+    Args:
+    - error_message (str): The error message to be logged.
+    - json_post_content (Dict[str, Any]): The content of the post file in JSON format.
+    - logger (logging.Logger): The logger instance to use for logging the error.
+
+    Returns:
+    - None
+
+    Raises:
+    - SystemExit: The program will exit with an exit status of 1.
+    """
+    logger.error(error_message)
+    handle_post_update(
+        success=False, json_post_content=json_post_content, logger=logger
+    )
+    sys.exit(1)
+
+
+def prepare_upload_params(
+    json_post_content: Dict[str, Any], logger: logging.Logger
+) -> Dict[str, Any]:
+    # Initial needed upload parameters
+    upload_params = {
+        "path": json_post_content.get("image_path"),
+        "caption": json_post_content.get("description"),
+    }
+
+    # If the optional field is provided
+    if "extra_data" in json_post_content:
+        extra_data = json_post_content["extra_data"]
+        try:
+            extra_data["custom_accessibility_caption"] = str(
+                extra_data.get("custom_accessibility_caption", "")
+            )
+            extra_data["like_and_view_counts_disabled"] = int(
+                extra_data.get("like_and_view_counts_disabled", 0)
+            )
+            extra_data["disable_comments"] = int(extra_data.get("disable_comments", 0))
+
+        except (ValueError, TypeError):
+            logger.error(
+                f"The 'extra_data' field in the post file is not in the expected format: {json_post_content}"
+            )
+            handle_post_update(
+                success=False, json_post_content=json_post_content, logger=logger
+            )
+            sys.exit(1)
+
+        extra_data["like_and_view_counts_disabled"] = max(
+            0, min(1, extra_data["like_and_view_counts_disabled"])
+        )
+        extra_data["disable_comments"] = max(0, min(1, extra_data["disable_comments"]))
+        upload_params["extra_data"] = extra_data
+
+    return upload_params
+
+
+def upload_to_instagram(
+    client: Client,
+    upload_params: Dict[str, Any],
+    json_post_content: Dict[str, Any],
+    logger: logging.Logger,
+) -> None:
+    """
+    Uploads media to Instagram and handles logging and updating post files based on the result.
+
+    Args:
+    - client: The Instagram client used for uploading media.
+    - upload_params (Dict[str, Any]): The parameters for the media upload.
+    - json_post_content (Dict[str, Any]): The content of the post file in JSON format.
+    - logger (logging.Logger): The logger instance to use for logging errors and success messages.
+
+    Returns:
+    - None
+
+    Raises:
+    - SystemExit: Exits the program with an error status if the upload fails.
+    """
+    try:
+        # Upload the media to Instagram
+        upload_media = client.photo_upload(**upload_params)
+
+        # Get the uploaded post ID
+        uploaded_post_id = upload_media.model_dump().get("id", None)
+        logger.info(
+            f"Successfully uploaded the post on Instagram. ID: {uploaded_post_id}"
+        )
+        handle_post_update(
+            success=True, json_post_content=json_post_content, logger=logger
+        )
+    except Exception as e:
+        logger.error(f"Failed to upload the post: {e}")
+        handle_post_update(
+            success=False, json_post_content=json_post_content, logger=logger
+        )
 
 
 def main() -> None:
@@ -115,80 +279,41 @@ def main() -> None:
         # Set up the instagrapi client
         client = setup_instagrapi(logger)
 
-        # Read and parse the post file
-        with open(post_path, "r") as post_file:
-            content = post_file.read()
-
-        json_post_content: Dict[str, Any] = json.loads(content)
-
-        if (not os.path.exists(post_path)) or (not os.path.isfile(post_path)):
-            logger.error(f"'{post_path}' does not exist or is not a file")
-            update_post_files(success=False, json_post_content=json_post_content)
-            sys.exit(1)
-
-        # Validate image file extension
-        if not is_valid_image_extension(json_post_content["image_path"]):
-            logger.error(f"'{json_post_content['image_path']}' is not a valid image")
-            update_post_files(success=False, json_post_content=json_post_content)
-            sys.exit(1)
-
-        # Prepare upload parameters
-        upload_params: Dict[str, Any] = {
-            "path": json_post_content.get("image_path"),
-            "caption": json_post_content.get("description"),
-        }
-
-        if "extra_data" in json_post_content:
-            extra_data: Dict[str, Any] = json_post_content["extra_data"]
-            try:
-                # Ensure the data types are correct
-                extra_data["custom_accessibility_caption"] = str(
-                    extra_data.get("custom_accessibility_caption", "")
-                )
-                extra_data["like_and_view_counts_disabled"] = int(
-                    extra_data.get("like_and_view_counts_disabled", 0)
-                )
-                extra_data["disable_comments"] = int(
-                    extra_data.get("disable_comments", 0)
-                )
-
-            except (ValueError, TypeError):
-                logger.error(
-                    f"The 'extra_data' field in the post file is not in the expected format: {json_post_content}"
-                )
-                update_post_files(
-                    success=False,
-                    json_post_content=json_post_content,
-                )
-                sys.exit(1)
-
-            # Ensure the values are within the expected range
-            extra_data["like_and_view_counts_disabled"] = max(
-                0,
-                min(1, extra_data["like_and_view_counts_disabled"]),
-            )
-            extra_data["disable_comments"] = max(
-                0, min(1, extra_data["disable_comments"])
-            )
-
-            upload_params["extra_data"] = extra_data
-
-        # Log the final upload parameters
-        logger.info(
-            f"Posting to Instagram with the following details: {upload_params}",
+        json_post_content: Dict[str, Any] = parse_post_file_to_json(
+            post_path=post_path, logger=logger
         )
 
-        try:
-            # Upload the media to Instagram
-            upload_media = client.photo_upload(**upload_params)
+        # If the path does not exist or the path is not a file
+        if (not os.path.exists(post_path)) or (not os.path.isfile(post_path)):
+            return handle_invalid_post_file(
+                error_message=f"'{post_path}' does not exist or is not a file",
+                json_post_content=json_post_content,
+                logger=logger,
+            )
 
-            # Log the upload response
-            logger.info(f"Upload response: {upload_media.model_dump()}")
+        image_path = json_post_content["image_path"]
 
-            update_post_files(success=True, json_post_content=json_post_content)
-        except Exception as e:
-            logger.error(f"Failed to upload the post: {e}")
-            update_post_files(success=False, json_post_content=json_post_content)
+        # Validate image file extension
+        if not is_valid_image_extension(image_path):
+            return handle_invalid_post_file(
+                error_message=f"'{image_path}' is not a valid image",
+                json_post_content=json_post_content,
+                logger=logger,
+            )
+
+        upload_params: Dict[str, Any] = prepare_upload_params(
+            json_post_content=json_post_content, logger=logger
+        )
+
+        # Log the final upload parameters
+        logger.info(f"Posting to Instagram with the following details: {upload_params}")
+
+        upload_to_instagram(
+            client=client,
+            upload_params=upload_params,
+            json_post_content=json_post_content,
+            logger=logger,
+        )
 
     else:
         logger.error("No path to the post file was provided")

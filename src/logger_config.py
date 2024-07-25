@@ -1,7 +1,7 @@
 import logging
 
 
-def get_logger(log_file: str) -> logging.Logger :
+def get_logger(log_file: str) -> logging.Logger:
     """
     Creates and configures a logger to log messages to a specified file.
 
