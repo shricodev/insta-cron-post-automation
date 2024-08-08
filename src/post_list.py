@@ -16,7 +16,7 @@ class PostList:
         self.posts = []
         self.logger = get_logger(log_path)
 
-    def serialize(self) -> str:
+    def to_json(self) -> str:
         """
         Serialize the list of posts into a JSON string.
         Use this method to write the content in the `self.posts` array to a JSON file.

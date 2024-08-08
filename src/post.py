@@ -12,17 +12,46 @@ class Post:
     - extra_data (Any, optional): Additional data for the post. Defaults to None.
     """
 
+    ALLOWED_EXTRA_DATA_FIELDS = {
+        "custom_accessibility_caption",
+        "like_and_view_counts_disabled",
+        "disable_comments",
+    }
+
     def __init__(
         self,
         description: str,
         image_path: str,
         post_date: str,
-        extra_data: Optional[Any] = None,
+        extra_data: Optional[Dict[str, Any]] = None,
     ):
         self.image_path = image_path
         self.description = description
         self.post_date = post_date
-        self.extra_data = extra_data
+        self.extra_data = self.validate_extra_data(extra_data)
+
+    def validate_extra_data(
+        self, extra_data: Optional[Dict[str, Any]]
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Validates and filters the extra_data dictionary to ensure it contains only allowed fields.
+
+        Args:
+        - extra_data (Optional[Dict[str, Any]]): The extra data dictionary to validate.
+
+        Returns:
+        - Optional[Dict[str, Any]]: The validated extra data dictionary, or None if input is None or invalid.
+        """
+        if extra_data is None:
+            return None
+
+        validated_data = {
+            key: extra_data[key]
+            for key in extra_data
+            if key in self.ALLOWED_EXTRA_DATA_FIELDS
+        }
+
+        return validated_data if validated_data else None
 
     def serialize(self) -> Dict[str, Any]:
         """

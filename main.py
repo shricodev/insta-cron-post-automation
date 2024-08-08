@@ -112,7 +112,7 @@ def create_cron_job(
         )
         job.setall(post_date.strftime("%M %H %d %m *"))
     except Exception as e:
-        logger.error(f"ERROR: Failed to create cron job: {e}")
+        logger.error(f"Failed to create cron job: {e}")
         sys.exit(1)
 
 
