@@ -9,7 +9,7 @@ class Post:
     - description (str): The description for the post.
     - image_path (str): The path to the image file.
     - post_date (str): The date and time of the post.
-    - extra_data (Any, optional): Additional data for the post. Defaults to None.
+    - extra_data (Optional[Dict[str, Any]]): Additional data for the post. Defaults to None.
     """
 
     ALLOWED_EXTRA_DATA_FIELDS = {
@@ -28,7 +28,7 @@ class Post:
         self.image_path = image_path
         self.description = description
         self.post_date = post_date
-        self.extra_data = self.validate_extra_data(extra_data)
+        self.extra_data = self.validate_extra_data(extra_data=extra_data)
 
     def validate_extra_data(
         self, extra_data: Optional[Dict[str, Any]]

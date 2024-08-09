@@ -3,12 +3,24 @@ import logging
 import os
 import sys
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, NoReturn, Optional
 
 from instagrapi import Client
 
 from logger_config import get_logger
 from setup import setup_instagrapi
+
+
+def log_and_exit(logger: logging.Logger, message: str) -> NoReturn:
+    """
+    Log an error message and exit the program.
+
+    Args:
+    - logger (logging.Logger): The logger to use.
+    - message (str): The error message to log.
+    """
+    logger.error(message)
+    sys.exit(1)
 
 
 def is_valid_image_extension(file_name: str) -> bool:
@@ -48,7 +60,9 @@ def handle_post_update(
                 with open(file_path, "r") as file:
                     return json.load(file)
             except Exception:
-                logger.error(f"Failed to decode JSON from file '{file_path}'")
+                log_and_exit(
+                    logger=logger, message=f"Failed to load post file: {file_path}"
+                )
 
         return default if default is not None else []
 
@@ -65,8 +79,9 @@ def handle_post_update(
                     post_date = datetime.strptime(post["post_date"], "%Y-%m-%d %H:%M")
                     post["post_date"] = post_date.strftime("%Y-%m-%d %H:%M")
                 except Exception as e:
-                    logger.error(f"Failed to parse post date: {e}")
-                    sys.exit(1)
+                    log_and_exit(
+                        logger=logger, message=f"Failed to parse post date: {e}"
+                    )
 
         try:
             with open(file_path, "w") as file:
@@ -74,8 +89,7 @@ def handle_post_update(
             logger.info(f"Post file updated: {file_path}")
 
         except (IOError, json.JSONDecodeError) as e:
-            logger.error(f"Failed to write post file: {e}")
-            sys.exit(1)
+            log_and_exit(logger=logger, message=f"Failed to write post file: {e}")
 
     # Get the directory of the current script
     current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -89,19 +103,19 @@ def handle_post_update(
     to_post_file = os.path.join(data_dir, "to-post.json")
 
     # Load the current 'to-post' data if it exists, otherwise initialize an empty list
-    to_post_data = load_json_file(to_post_file, {"posts": []})
+    to_post_data = load_json_file(file_path=to_post_file, default={"posts": []})
 
     # Determine which file to write to based on the success of the upload
     target_file = success_file if success else error_file
 
     # Load the current content of the target file if it exists, otherwise initialize an empty list
-    target_data = load_json_file(target_file, [])
+    target_data = load_json_file(file_path=target_file, default=[])
 
     # Append the current post content to the target data
     target_data.append(json_post_content)
 
     # Write the updated target data back to the target file
-    write_json_file(target_file, target_data)
+    write_json_file(file_path=target_file, posts=target_data)
 
     user_posts = to_post_data["posts"]
 
@@ -109,7 +123,7 @@ def handle_post_update(
     if any(post == json_post_content for post in user_posts):
         user_posts = [item for item in user_posts if item != json_post_content]
         to_post_data["posts"] = user_posts
-        write_json_file(to_post_file, to_post_data)
+        write_json_file(file_path=to_post_file, posts=to_post_data)
 
 
 def parse_post_file_to_json(post_path: str, logger: logging.Logger) -> Dict[str, Any]:
@@ -134,23 +148,26 @@ def parse_post_file_to_json(post_path: str, logger: logging.Logger) -> Dict[str,
         return json.loads(content)
 
     except FileNotFoundError:
-        logger.error(f"Post file '{post_path}' does not exist")
-        sys.exit(1)
+        log_and_exit(logger=logger, message=f"Post file '{post_path}' does not exist")
 
     except PermissionError:
-        logger.error(f"Permission denied when trying to read post file '{post_path}'")
-        sys.exit(1)
+        log_and_exit(
+            logger=logger,
+            message=f"Permission denied when trying to access post file '{post_path}'",
+        )
 
     except json.JSONDecodeError:
-        logger.error(f"Failed to decode JSON from post file '{post_path}'")
-        sys.exit(1)
+        log_and_exit(
+            logger=logger, message=f"Failed to decode JSON from post file '{post_path}'"
+        )
 
     except Exception as e:
-        logger.error(f"Failed to read post file '{post_path}': {e}")
-        sys.exit(1)
+        log_and_exit(
+            logger=logger, message=f"Failed to read post file '{post_path}': {e}"
+        )
 
 
-def handle_invalid_post_file(
+def handle_post_error(
     error_message: str, json_post_content: Dict[str, Any], logger: logging.Logger
 ) -> None:
     """
@@ -168,11 +185,10 @@ def handle_invalid_post_file(
     Raises:
     - SystemExit: The program will exit with an exit status of 1.
     """
-    logger.error(error_message)
     handle_post_update(
         success=False, json_post_content=json_post_content, logger=logger
     )
-    sys.exit(1)
+    log_and_exit(logger=logger, message=error_message)
 
 
 def prepare_upload_params(
@@ -197,13 +213,11 @@ def prepare_upload_params(
             extra_data["disable_comments"] = int(extra_data.get("disable_comments", 0))
 
         except (ValueError, TypeError):
-            logger.error(
-                f"The 'extra_data' field in the post file is not in the expected format: {json_post_content}"
+            handle_post_error(
+                error_message=f"Failed to parse 'extra_data' field: {json_post_content}",
+                json_post_content=json_post_content,
+                logger=logger,
             )
-            handle_post_update(
-                success=False, json_post_content=json_post_content, logger=logger
-            )
-            sys.exit(1)
 
         extra_data["like_and_view_counts_disabled"] = max(
             0, min(1, extra_data["like_and_view_counts_disabled"])
@@ -248,9 +262,10 @@ def upload_to_instagram(
             success=True, json_post_content=json_post_content, logger=logger
         )
     except Exception as e:
-        logger.error(f"Failed to upload the post: {e}")
-        handle_post_update(
-            success=False, json_post_content=json_post_content, logger=logger
+        handle_post_error(
+            error_message=f"Failed to upload the post: {e}",
+            json_post_content=json_post_content,
+            logger=logger,
         )
 
 
@@ -270,14 +285,14 @@ def main() -> None:
     current_dir = os.path.dirname(os.path.abspath(__file__))
 
     # Path to the log file, assuming 'logs' is one level up from the current directory
-    log_path = os.path.join(current_dir, "..", "logs", "activity.log")
-    logger = get_logger(log_path)
+    log_path = os.path.join(current_dir, "..", "logs", "post-activity.log")
+    logger = get_logger(log_file=log_path)
 
     if len(sys.argv) > 1:
         post_path = sys.argv[1]
 
         # Set up the instagrapi client
-        client = setup_instagrapi(logger)
+        client = setup_instagrapi(logger=logger)
 
         json_post_content: Dict[str, Any] = parse_post_file_to_json(
             post_path=post_path, logger=logger
@@ -285,7 +300,7 @@ def main() -> None:
 
         # If the path does not exist or the path is not a file
         if (not os.path.exists(post_path)) or (not os.path.isfile(post_path)):
-            return handle_invalid_post_file(
+            return handle_post_error(
                 error_message=f"'{post_path}' does not exist or is not a file",
                 json_post_content=json_post_content,
                 logger=logger,
@@ -295,7 +310,7 @@ def main() -> None:
 
         # Validate image file extension
         if not is_valid_image_extension(image_path):
-            return handle_invalid_post_file(
+            return handle_post_error(
                 error_message=f"'{image_path}' is not a valid image",
                 json_post_content=json_post_content,
                 logger=logger,
@@ -316,8 +331,7 @@ def main() -> None:
         )
 
     else:
-        logger.error("No path to the post file was provided")
-        sys.exit(1)
+        log_and_exit(logger=logger, message="Please provide the path to the post file")
 
 
 if __name__ == "__main__":

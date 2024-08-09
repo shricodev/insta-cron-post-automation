@@ -1,7 +1,7 @@
 import json
 import sys
 from datetime import datetime
-from typing import List, Optional
+from typing import List, NoReturn, Optional
 
 from logger_config import get_logger
 from post import Post
@@ -15,6 +15,16 @@ class PostList:
     def __init__(self, log_path: str):
         self.posts = []
         self.logger = get_logger(log_path)
+
+    def _log_and_exit(self, message: str) -> NoReturn:
+        """
+        Log an error message and exit the program.
+
+        Args:
+        - message (str): The error message to log.
+        """
+        self.logger.error(message)
+        sys.exit(1)
 
     def to_json(self) -> str:
         """
@@ -66,14 +76,16 @@ class PostList:
                 data = json.load(posts_json_file)
 
                 if "posts" not in data:
-                    self._handle_error("No 'posts' key found in the json file")
+                    self._log_and_exit(message="No 'posts' key found in the json file")
 
                 for post in data["posts"]:
                     if not all(
                         key in post
                         for key in ["image_path", "description", "post_date"]
                     ):
-                        self._handle_error("Missing required keys in the post object")
+                        self._log_and_exit(
+                            message="Missing required keys in the post object"
+                        )
 
                     extra_data: Optional[dict] = post.get("extra_data")
 
@@ -86,28 +98,20 @@ class PostList:
                     self.posts.append(post_obj)
 
         except FileNotFoundError:
-            self._handle_error(f"File not found: {posts_file_path}")
+            self._log_and_exit(message=f"File not found: {posts_file_path}")
 
         except PermissionError:
-            self._handle_error(f"Permission denied: {posts_file_path}")
+            self._log_and_exit(message=f"Permission denied: {posts_file_path}")
 
         except json.JSONDecodeError:
-            self._handle_error(f"Invalid JSON file: {posts_file_path}")
+            self._log_and_exit(message=f"Invalid JSON file: {posts_file_path}")
 
         except ValueError as ve:
-            self._handle_error(f"Invalid date format provided in the post object: {ve}")
+            self._log_and_exit(
+                message=f"Invalid date format provided in the post object: {ve}"
+            )
 
         except Exception as e:
-            self._handle_error(f"Unexpected error: {e}")
+            self._log_and_exit(message=f"Unexpected error: {e}")
 
         return self.posts
-
-    def _handle_error(self, message: str) -> None:
-        """
-        Log an error message and exit the program.
-
-        Args:
-        - message (str): The error message to log.
-        """
-        self.logger.error(message)
-        sys.exit(1)

@@ -6,7 +6,7 @@ import string
 import sys
 from datetime import datetime
 from os import environ
-from typing import Dict
+from typing import Dict, NoReturn
 
 from dateutil import tz
 
@@ -16,6 +16,18 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "src
 from crontab import CronTab
 
 from src import logger_config, post_list
+
+
+def log_and_exit(logger: logging.Logger, message: str) -> NoReturn:
+    """
+    Log an error message and exit the program.
+
+    Args:
+    - logger (logging.Logger): The logger to use.
+    - message (str): The error message to log.
+    """
+    logger.error(message)
+    sys.exit(1)
 
 
 def get_shell_script_to_run(
@@ -43,8 +55,7 @@ def get_shell_script_to_run(
 
     run_media_post_path = shell_script_map.get(user_shell, None)
     if run_media_post_path is None:
-        logger.error(f"Unsupported shell: {user_shell}")
-        sys.exit(1)
+        log_and_exit(logger=logger, message=f"Unsupported shell: {user_shell}")
 
     return run_media_post_path
 
@@ -71,13 +82,16 @@ def validate_post_date(post_date: str, logger: logging.Logger) -> datetime:
         # Attempt to parse the post_date string into a datetime object
         parsed_date = datetime.strptime(post_date, date_format)
     except ValueError:
-        logger.error(f"Post date '{post_date}' is not in a valid datetime format.")
-        sys.exit(1)
+        log_and_exit(
+            logger=logger,
+            message=f"The post_date is not in the correct format: {post_date}",
+        )
 
     # Check if the parsed date is in the future
     if parsed_date.astimezone(tz.UTC) <= datetime.now(tz=tz.UTC):
-        logger.error(f"Post date '{post_date}' is not in the future.")
-        sys.exit(1)
+        log_and_exit(
+            logger=logger, message=f"The post_date `{post_date}` is in the past."
+        )
 
     return parsed_date
 
@@ -107,13 +121,16 @@ def create_cron_job(
     - SystemExit: If the cron job creation fails.
     """
     try:
-        job = cron.new(
-            command=f"{user_shell} {run_media_post_path} {media_post_path} {scheduled_post_file_path}"
+        # Conditionally add semicolon
+        command = (
+            f"SHELL=$(command -v {user_shell})"
+            + (";" if user_shell == "bash" else "")
+            + f" {user_shell} {run_media_post_path} {media_post_path} {scheduled_post_file_path}"
         )
+        job = cron.new(command=command)
         job.setall(post_date.strftime("%M %H %d %m *"))
     except Exception as e:
-        logger.error(f"Failed to create cron job: {e}")
-        sys.exit(1)
+        log_and_exit(logger=logger, message=f"Failed to create cron job: {e}")
 
 
 def main() -> None:
@@ -134,12 +151,12 @@ def main() -> None:
     current_dir = os.path.dirname(os.path.abspath(__file__))
 
     # Define paths for log file and posts JSON file
-    log_path = os.path.join(current_dir, "logs", "activity.log")
+    log_path = os.path.join(current_dir, "logs", "post-activity.log")
     to_post_path = os.path.join(current_dir, "data", "to-post.json")
     media_post_path = os.path.join(current_dir, "src", "media_post.py")
 
     # Initialize logger
-    logger = logger_config.get_logger(log_path)
+    logger = logger_config.get_logger(log_file=log_path)
 
     post_data_dir = os.path.join(current_dir, "data", "scheduled_posts")
     os.makedirs(post_data_dir, exist_ok=True)
@@ -147,11 +164,14 @@ def main() -> None:
     # Initialize PostList object and load posts from JSON file
     posts_list = post_list.PostList(log_path)
 
-    posts_list.get_posts_from_json_file(to_post_path)
+    posts_list.get_posts_from_json_file(posts_file_path=to_post_path)
     logger.info(f"Number of posts loaded: {len(posts_list.posts)}")
 
     user_shell = os.path.basename(environ.get("SHELL", "/bin/bash"))
-    run_media_post_path = get_shell_script_to_run(user_shell, current_dir, logger)
+
+    run_media_post_path = get_shell_script_to_run(
+        user_shell=user_shell, current_dir=current_dir, logger=logger
+    )
 
     # Access the current user's CronTab object.
     cron = CronTab(user=True)
@@ -176,8 +196,7 @@ def main() -> None:
             with open(scheduled_post_file_path, "w") as f:
                 json.dump(post.serialize(), f, default=str)
         except (IOError, json.JSONDecodeError) as e:
-            logger.error(f"Failed to write post file: {e}")
-            sys.exit(1)
+            log_and_exit(logger=logger, message=f"Failed to write post file: {e}")
 
         # Create a new cron job to run the Instagram post script with the temp file as an argument
         create_cron_job(
@@ -194,9 +213,8 @@ def main() -> None:
     try:
         cron.write()
         logger.info(f"Cronjob added to the CronTab for the current user: {cron.user}")
-    except IOError as e:
-        logger.error(f"Failed to write to CronTab: {e}")
-        sys.exit(1)
+    except Exception as e:
+        log_and_exit(logger=logger, message=f"Failed to write to CronTab: {e}")
 
 
 if __name__ == "__main__":

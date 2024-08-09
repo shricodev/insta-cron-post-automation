@@ -4,7 +4,7 @@
 # Since, I want this script to be portable for most of the users, instead of hardcoding like '#!/usr/bin/bash', I am using this way.
 
 # Constants for error messages
-ERROR_USAGE="ERROR: Usage: $0 {media_post_path} {post_file_path}"
+ERROR_USAGE="ERROR: Usage: bash {media_post_path} {post_file_path}"
 ERROR_FILE_NOT_FOUND="ERROR: One or both of the files do not exist or are not valid files."
 ERROR_PYTHON_NOT_FOUND="ERROR: No suitable Python executable found."
 ERROR_BASH_NOT_INSTALLED="ERROR: Bash shell is not installed. Please install Bash."
@@ -14,15 +14,18 @@ ERROR_UNSUPPORTED_SHELL="ERROR: Unsupported shell: '$SHELL'"
 # Determine the script directory and virtual environment directory
 SCRIPT_DIR="$(dirname "$(realpath "$0")")"
 VENV_DIR="$(realpath "$SCRIPT_DIR/../../.venv")"
+LOG_FILE="$(realpath "$SCRIPT_DIR/../../logs/shell-error.log")"
 
-print_usage_and_exit() {
-    echo "$ERROR_USAGE"
-    exit 1
+log_and_exit() {
+  local message="$1"
+
+  echo "[$(date +"%Y-%m-%d %H:%M:%S")] $message" | tee -a $LOG_FILE
+  exit 1
 }
 
 # Check if both arguments are provided
 if [ $# -ne 2 ]; then
-  print_usage_and_exit
+  log_and_exit "$ERROR_USAGE"
 fi
 
 # Function to check if a file exists and has the correct extension
@@ -31,13 +34,11 @@ check_file() {
     local expected_extension="$2"
 
     if [ ! -f "$file_path" ]; then
-        echo "$ERROR_FILE_NOT_FOUND"
-        exit 1
+        log_and_exit "$ERROR_FILE_NOT_FOUND"
     fi
 
     if ! [[ "$file_path" == *".$expected_extension" ]]; then
-        echo "ERROR: The file '$file_path' must be a .$expected_extension file."
-        exit 1
+        log_and_exit "The file '$file_path' must be a '.$expected_extension' file."
     fi
 }
 
@@ -55,15 +56,13 @@ PYTHON_EXEC="$(command -v python3 || command -v python)"
 # Ensure that the Python executable is available before creating the virtual environment
 if [ ! -d "$VENV_DIR" ]; then
     if [ -z "$PYTHON_EXEC" ]; then
-        echo "$ERROR_PYTHON_NOT_FOUND"
-        exit 1
+        log_and_exit "$ERROR_PYTHON_NOT_FOUND"
     fi
     "$PYTHON_EXEC" -m venv "$VENV_DIR"
 fi
 
 if ! command -v bash &> /dev/null; then
-    echo "$ERROR_BASH_NOT_INSTALLED"
-    exit 1
+    log_and_exit "$ERROR_BASH_NOT_INSTALLED"
 fi
 
 # Activate the virtual environment based on the shell type
@@ -72,12 +71,10 @@ if [[ "$SHELL" == *"/bash" ]]; then
     if [ -f "$VENV_DIR/bin/activate" ]; then
         source "$VENV_DIR/bin/activate"
     else
-        echo "$ERROR_ACTIVATE_NOT_FOUND"
-        exit 1
+        log_and_exit "$ERROR_ACTIVATE_NOT_FOUND"
     fi
 else
-    echo "$ERROR_UNSUPPORTED_SHELL"
-    exit 1
+    log_and_exit "$ERROR_UNSUPPORTED_SHELL"
 fi
 
 # Set the python executable to the one from the virtual environment

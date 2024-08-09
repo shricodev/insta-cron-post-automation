@@ -44,7 +44,8 @@ insta-cron-post-automation/
 │   └── to-post.json
 ├── logs/
 │   ├── .gitkeep
-│   └── (gitignored) activity.log
+│   └── (gitignored) post-activity.log
+│   └── (gitignored) shell-error.log
 ├── src/
 │   ├── (gitignored) __pycache__/
 │   ├── scripts/
@@ -134,7 +135,7 @@ This script will:
 
 ## 💬 Logging
 
-The application logs detailed information about events and errors. You can view the logs in the `logs/activity.log` file.
+The application logs detailed information about events and errors. You can view the logs in the `logs/post-activity.log` and `logs/shell-error.log` file.
 Also, you can view the success and error logs for each post in the `data/success.json` and `data/error.json` files respectively.
 
 ## Show your support

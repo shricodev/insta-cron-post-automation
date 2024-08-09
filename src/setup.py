@@ -1,10 +1,22 @@
 import logging
 import os
 import sys
-from typing import Tuple
+from typing import NoReturn, Tuple
 
 from dotenv import load_dotenv
 from instagrapi import Client
+
+
+def log_and_exit(logger: logging.Logger, message: str) -> NoReturn:
+    """
+    Log an error message and exit the program.
+
+    Args:
+    - logger (logging.Logger): The logger to use.
+    - message (str): The error message to log.
+    """
+    logger.error(message)
+    sys.exit(1)
 
 
 def get_credentials(logger: logging.Logger) -> Tuple[str, str]:
@@ -32,8 +44,10 @@ def get_credentials(logger: logging.Logger) -> Tuple[str, str]:
 
     # Check if username or password is None, and raise an exception if so.
     if username is None or password is None:
-        logger.error("Username or password environment variable is missing")
-        sys.exit(1)
+        log_and_exit(
+            logger=logger,
+            message="Username or password environment variable is missing",
+        )
 
     return username, password
 
@@ -54,20 +68,20 @@ def setup_instagrapi(logger: logging.Logger) -> Client:
     Raises:
     - SystemExit: If an error occurs while logging in to Instagram.
     """
-    username, password = get_credentials(logger)
+    username, password = get_credentials(logger=logger)
     client = Client()
 
     try:
-        login_success = client.login(username, password)
+        login_success = client.login(username=username, password=password)
 
         if not login_success:
-            logger.error("Instagram Login failed")
-            sys.exit(1)
+            log_and_exit(logger=logger, message="Instagram Login failed")
 
         logger.info("Instagram Login successful")
 
     except Exception as e:
-        logger.error(f"An error occurred while logging in to Instagram: {e}")
-        sys.exit(1)
+        log_and_exit(
+            logger=logger, message=f"An error occurred while trying to login: {e}"
+        )
 
     return client

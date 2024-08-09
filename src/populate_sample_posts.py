@@ -3,7 +3,7 @@ import os
 import sys
 from datetime import datetime, timedelta
 from random import choice
-from typing import List
+from typing import List, NoReturn
 
 import lorem
 import numpy as np
@@ -17,7 +17,7 @@ from post_list import PostList
 POST_COUNT = 1
 
 
-def handle_error(logger: logging.Logger, message: str) -> None:
+def log_and_exit(logger: logging.Logger, message: str) -> NoReturn:
     """
     Log an error message and exit the program.
 
@@ -48,8 +48,9 @@ def generate_sample_images(
     - SystemExit: If any of the input parameters are invalid.
     """
     if num_images <= 0 or width <= 0 or height <= 0:
-        handle_error(
-            logger, "Invalid input parameters. Please provide positive values."
+        log_and_exit(
+            logger=logger,
+            message="Invalid input parameters. Please provide positive values.",
         )
 
     # Create the save_dir folder if it does not exist
@@ -71,7 +72,9 @@ def generate_sample_images(
             image.save(file_path)
             file_paths.append(file_path)
         except Exception as e:
-            handle_error(logger, f"There was a problem saving image {i}: {e}")
+            log_and_exit(
+                logger=logger, message=f"There was a problem saving image {i}: {e}"
+            )
 
     return file_paths
 
@@ -91,14 +94,18 @@ def generate_sample_posts(num_posts: int, image_paths: List[str]) -> List[Post]:
     - SystemExit: If any of the input parameters are invalid.
     """
     if not isinstance(num_posts, int) or num_posts <= 0:
-        handle_error(
-            logger, "Number of posts must be a positive integer greater than 0."
+        log_and_exit(
+            logger=logger,
+            message="Number of posts must be a positive integer greater than 0.",
         )
 
     if not isinstance(image_paths, list) or not all(
         isinstance(path, str) for path in image_paths
     ):
-        handle_error(logger, "Invalid image paths. Please provide a list of strings.")
+        log_and_exit(
+            logger=logger,
+            message="Invalid image paths. Please provide a list of strings.",
+        )
 
     posts: List[Post] = []
 
@@ -120,7 +127,7 @@ def generate_sample_posts(num_posts: int, image_paths: List[str]) -> List[Post]:
 if __name__ == "__main__":
     current_dir = os.path.dirname(os.path.abspath(__file__))
 
-    log_path = os.path.join(current_dir, "..", "logs", "activity.log")
+    log_path = os.path.join(current_dir, "..", "logs", "post-activity.log")
     to_post_path = os.path.join(current_dir, "..", "data", "to-post.json")
     sample_images_dir = os.path.join(current_dir, "..", "data", "generated_images")
 
@@ -132,7 +139,7 @@ if __name__ == "__main__":
         num_images=POST_COUNT, width=1080, height=1340, save_dir=sample_images_dir
     )
 
-    sample_posts = generate_sample_posts(POST_COUNT, image_paths=image_paths)
+    sample_posts = generate_sample_posts(num_posts=POST_COUNT, image_paths=image_paths)
 
     post_list.posts.extend(sample_posts)
 
@@ -140,8 +147,9 @@ if __name__ == "__main__":
         with open(to_post_path, "w") as f:
             f.write(post_list.to_json())
     except Exception as e:
-        handle_error(
-            logger, f"There was a problem writing sample posts to '{to_post_path}': {e}"
+        log_and_exit(
+            logger=logger,
+            message=f"There was a problem writing sample posts to '{to_post_path}': {e}",
         )
 
     logger.info(f"Sample posts written to '{to_post_path}'")
