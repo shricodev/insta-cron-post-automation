@@ -63,8 +63,10 @@ def handle_post_update(
                 log_and_exit(
                     logger=logger, message=f"Failed to load post file: {file_path}"
                 )
-
-        return default if default is not None else []
+        else:
+            # Create the file with default content if it does not exist
+            write_json_file(file_path, default if default is not None else [])
+            return default if default is not None else []
 
     def write_json_file(file_path: str, posts: List[Dict[str, Any]]) -> None:
         """Helper function to save JSON data to a file."""
@@ -101,6 +103,13 @@ def handle_post_update(
     success_file = os.path.join(data_dir, "success.json")
     error_file = os.path.join(data_dir, "error.json")
     to_post_file = os.path.join(data_dir, "to-post.json")
+
+    # Ensure the success and error files exist
+    if not os.path.exists(success_file):
+        write_json_file(success_file, [])
+
+    if not os.path.exists(error_file):
+        write_json_file(error_file, [])
 
     # Load the current 'to-post' data if it exists, otherwise initialize an empty list
     to_post_data = load_json_file(file_path=to_post_file, default={"posts": []})
