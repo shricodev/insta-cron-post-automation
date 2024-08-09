@@ -11,7 +11,7 @@ ERROR_BASH_NOT_INSTALLED="ERROR: Bash shell is not installed. Please install Bas
 ERROR_ACTIVATE_NOT_FOUND="ERROR: activate file not found in '$VENV_DIR/bin'"
 ERROR_UNSUPPORTED_SHELL="ERROR: Unsupported shell: '$SHELL'"
 
-# Determine the script directory and virtual environment directory
+# Determine the script directory, virtual environment directory and log file.
 SCRIPT_DIR="$(dirname "$(realpath "$0")")"
 VENV_DIR="$(realpath "$SCRIPT_DIR/../../.venv")"
 LOG_FILE="$(realpath "$SCRIPT_DIR/../../logs/shell-error.log")"

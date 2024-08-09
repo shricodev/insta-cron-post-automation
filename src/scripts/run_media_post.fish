@@ -11,14 +11,15 @@ set -l ERROR_FISH_NOT_INSTALLED "ERROR: Fish shell is not installed. Please inst
 set -l ERROR_ACTIVATE_NOT_FOUND "ERROR: activate.fish not found in '$VENV_DIR/bin'"
 set -l ERROR_UNSUPPORTED_SHELL "ERROR: Unsupported shell: '$SHELL'"
 
-# Determine the script and virtual environment directory
+# Determine the script, virtual environment directory and log file path.
 set -l SCRIPT_DIR (dirname (realpath (status -f)))
 set -l VENV_DIR (realpath "$SCRIPT_DIR/../../.venv")
-set -l LOG_FILE (realpath "$SCRIPT_DIR/../../logs/shell-error.log")
+set -g LOG_FILE (realpath "$SCRIPT_DIR/../../logs/shell-error.log")
+
 
 # Function to log messages
 function log_and_exit
-    echo "["(date '+%Y-%m-%d %H:%M:%S')"]" - "$argv[1]" | tee -a $LOG_FILE
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $argv[1]" | tee -a $LOG_FILE
     exit 1
 end
 
